@@ -13,18 +13,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $email    = trim($_POST["email"] ?? "");
     $password = $_POST["password"] ?? "";
 
-    $result = attemptLogin($email, $password);
-    if ($result === "ok") {
-        header("Location: " . $next);
-        exit;
-    }
+    try {
+        $result = attemptLogin($email, $password);
+        if ($result === "ok") {
+            header("Location: " . $next);
+            exit;
+        }
 
-    $messages = [
-        "email_not_found" => "E-mail não encontrado.",
-        "wrong_password"  => "Senha incorreta.",
-        "not_verified"    => "Confirme seu e-mail antes de entrar. Verifique sua caixa de entrada.",
-    ];
-    $error = $messages[$result] ?? "Erro ao autenticar. Tente novamente.";
+        $messages = [
+            "email_not_found" => "E-mail não encontrado.",
+            "wrong_password"  => "Senha incorreta.",
+            "not_verified"    => "Confirme seu e-mail antes de entrar. Verifique sua caixa de entrada.",
+        ];
+        $error = $messages[$result] ?? "Erro ao autenticar. Tente novamente.";
+    } catch (Throwable $e) {
+        error_log("Login error: " . $e->getMessage());
+        $error = "Erro interno ao autenticar. Tente novamente em instantes.";
+    }
 }
 ?>
 <!DOCTYPE html>

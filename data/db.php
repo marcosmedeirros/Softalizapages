@@ -19,7 +19,109 @@ function db(): PDO
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
 
+    ensureUserTable($pdo);
+
     return $pdo;
+}
+
+function ensureUserTable(PDO $pdo): void
+{
+    try {
+        $pdo->exec("create table if not exists users (
+            id char(36) not null,
+            name varchar(255) not null,
+            email varchar(255) not null,
+            password varchar(255) not null,
+            email_verified_at timestamp null,
+            verification_token varchar(100) null,
+            reset_token varchar(100) null,
+            reset_token_expires_at timestamp null,
+            created_at timestamp not null default current_timestamp,
+            primary key (id),
+            unique key users_email_unique (email)
+        ) engine=InnoDB charset=utf8mb4");
+    } catch (Throwable $e) {
+        error_log("ensureUserTable failed: " . $e->getMessage());
+    }
+}
+
+function findUserByEmail(string $email): ?array
+{
+    $stmt = db()->prepare("select * from users where email = :email limit 1");
+    $stmt->execute(["email" => $email]);
+    return $stmt->fetch() ?: null;
+}
+
+function findUserByToken(string $field, string $token): ?array
+{
+    $allowed = ["verification_token", "reset_token"];
+    if (!in_array($field, $allowed, true)) return null;
+    $stmt = db()->prepare("select * from users where {$field} = :token limit 1");
+    $stmt->execute(["token" => $token]);
+    return $stmt->fetch() ?: null;
+}
+
+function findUserById(string $id): ?array
+{
+    $stmt = db()->prepare("select id, name, email, email_verified_at, created_at from users where id = :id limit 1");
+    $stmt->execute(["id" => $id]);
+    return $stmt->fetch() ?: null;
+}
+
+function createUser(string $name, string $email, string $password): array
+{
+    $id    = generateUuid();
+    $token = bin2hex(random_bytes(32));
+    $hash  = password_hash($password, PASSWORD_DEFAULT);
+    db()->prepare(
+        "insert into users (id, name, email, password, verification_token) values (:id, :name, :email, :password, :token)"
+    )->execute(["id" => $id, "name" => $name, "email" => $email, "password" => $hash, "token" => $token]);
+    return ["id" => $id, "name" => $name, "email" => $email, "verification_token" => $token];
+}
+
+function verifyUserEmail(string $token): bool
+{
+    $user = findUserByToken("verification_token", $token);
+    if (!$user) return false;
+    db()->prepare(
+        "update users set email_verified_at = now(), verification_token = null where id = :id"
+    )->execute(["id" => $user["id"]]);
+    return true;
+}
+
+function generatePasswordResetToken(string $email): ?string
+{
+    $user = findUserByEmail($email);
+    if (!$user) return null;
+    $token = bin2hex(random_bytes(32));
+    db()->prepare(
+        "update users set reset_token = :token, reset_token_expires_at = date_add(now(), interval 2 hour) where id = :id"
+    )->execute(["token" => $token, "id" => $user["id"]]);
+    return $token;
+}
+
+function resetUserPassword(string $token, string $newPassword): bool
+{
+    $user = findUserByToken("reset_token", $token);
+    if (!$user) return false;
+    if ($user["reset_token_expires_at"] && strtotime($user["reset_token_expires_at"]) < time()) return false;
+    $hash = password_hash($newPassword, PASSWORD_DEFAULT);
+    db()->prepare(
+        "update users set password = :password, reset_token = null, reset_token_expires_at = null where id = :id"
+    )->execute(["password" => $hash, "id" => $user["id"]]);
+    return true;
+}
+
+function changeUserPassword(string $userId, string $currentPassword, string $newPassword): bool
+{
+    $stmt = db()->prepare("select password from users where id = :id");
+    $stmt->execute(["id" => $userId]);
+    $row = $stmt->fetch();
+    if (!$row || !password_verify($currentPassword, $row["password"])) return false;
+    $hash = password_hash($newPassword, PASSWORD_DEFAULT);
+    db()->prepare("update users set password = :password where id = :id")
+        ->execute(["password" => $hash, "id" => $userId]);
+    return true;
 }
 
 function generateUuid(): string
