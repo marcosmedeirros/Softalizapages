@@ -1,5 +1,6 @@
+@charset "UTF-8";
 /* ============================================================
-   Softaliza — Design System
+   Softaliza - Design System
    ============================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -559,7 +560,7 @@ select.input { cursor: pointer; }
   grid-template-columns: 1fr;
   gap: 4px;
 }
-/* O wrapper vira a "linha" no modo lista */
+/* list-view: wrapper becomes the row */
 .sites-grid.list-view .site-card-wrapper {
   display: flex;
   align-items: stretch;
@@ -573,7 +574,7 @@ select.input { cursor: pointer; }
   box-shadow: var(--shadow);
   border-color: var(--border-2);
 }
-/* Card perde borda própria e vira flex row */
+/* list-view: card becomes flex row, no border */
 .sites-grid.list-view .site-card {
   flex: 1;
   display: flex;
@@ -620,7 +621,7 @@ select.input { cursor: pointer; }
   background: transparent;
 }
 .sites-grid.list-view .site-card-enter { opacity: 1; }
-/* Delete btn inline no modo lista */
+/* list-view: delete btn inline */
 .sites-grid.list-view .site-delete-form {
   position: static;
   display: flex;
