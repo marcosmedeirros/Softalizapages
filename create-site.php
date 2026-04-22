@@ -3,7 +3,18 @@ require __DIR__ . '/data/db.php';
 
 $error   = '';
 $success = '';
-$sites   = fetchSites();
+
+try {
+    $sites = db()->query(
+        "select s.id, s.name, a.name as owner
+         from sites s
+         join associations a on a.id = s.association_id
+         where s.status = 'ativo' and s.is_inspiration = 1
+         order by s.name"
+    )->fetchAll();
+} catch (Throwable $e) {
+    $sites = [];
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $associationName = trim($_POST['association_name'] ?? '');

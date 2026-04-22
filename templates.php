@@ -25,7 +25,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     }
 }
 
-// Busca sites disponíveis e indica quais são inspirações
+// Busca apenas sites ativos e indica quais estão marcados como inspiração
 try {
     $sitesAll = db()->query(
         "select s.id, s.name, s.status,
@@ -33,13 +33,11 @@ try {
                 a.name as owner
          from sites s
          join associations a on a.id = s.association_id
+         where s.status = 'ativo'
          order by s.is_inspiration desc, s.name"
     )->fetchAll();
 } catch (Throwable $e) {
-    // Fallback sem a coluna is_inspiration
-    $sitesAll = fetchSites();
-    foreach ($sitesAll as &$s) { $s["is_inspiration"] = 0; }
-    unset($s);
+    $sitesAll = [];
 }
 ?>
 <!DOCTYPE html>
@@ -144,12 +142,12 @@ try {
 
     <div class="card">
       <p style="margin:0 0 16px;font-size:14px;color:var(--muted);">
-        Ative os sites que devem aparecer como opção de inspiração no formulário do cliente.
-        O cliente poderá escolher um deles como referência visual.
+        Apenas <strong>sites ativos</strong> aparecem aqui. Ative o toggle para que um site apareça
+        como opção de inspiração visual no formulário do cliente.
       </p>
 
       <?php if (!$sitesAll): ?>
-        <p style="color:var(--muted);font-size:14px;">Nenhum site criado ainda.</p>
+        <p style="color:var(--muted);font-size:14px;">Nenhum site ativo encontrado. Publique um site no Hub para que ele apareça aqui.</p>
       <?php else: ?>
         <?php foreach ($sitesAll as $s): ?>
         <div class="site-row">
@@ -174,10 +172,6 @@ try {
         <?php endforeach; ?>
       <?php endif; ?>
 
-      <p style="margin:16px 0 0;font-size:12px;color:var(--muted);">
-        💡 Para que esta funcionalidade seja salva no banco, certifique-se de ter executado o
-        <strong>migration_v2.sql</strong> e que a coluna <code>is_inspiration</code> exista na tabela <code>sites</code>.
-      </p>
     </div>
 
   </main>
