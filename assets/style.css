@@ -489,6 +489,113 @@ select.input { cursor: pointer; }
 }
 .site-card:hover .site-card-enter { opacity: 1; }
 
+/* ── View toggle ─────────────────────────────────────────── */
+.view-toggle {
+  display: flex;
+  gap: 2px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+.view-btn {
+  width: 30px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--muted);
+  transition: background .15s, color .15s;
+}
+.view-btn.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+.view-btn:hover:not(.active) { color: var(--text); }
+
+/* ── Site card wrapper & delete btn ─────────────────────── */
+.site-card-wrapper { position: relative; }
+.site-card-info    { min-width: 0; }
+
+.site-delete-form {
+  position: absolute;
+  top: 10px; right: 10px;
+  z-index: 2;
+}
+.site-delete-btn {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0;
+  opacity: 0;
+  transition: opacity .15s, background .15s, color .15s, border-color .15s;
+}
+.site-card-wrapper:hover .site-delete-btn { opacity: 1; }
+.site-delete-btn:hover {
+  background: var(--danger-lt);
+  color: var(--danger);
+  border-color: #fca5a5;
+}
+
+/* ── List view ───────────────────────────────────────────── */
+.sites-grid.list-view {
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+.sites-grid.list-view .site-card {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  border-radius: var(--radius-sm);
+}
+.sites-grid.list-view .site-card:hover { transform: none; }
+.sites-grid.list-view .site-card-top {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+}
+.sites-grid.list-view .site-card-icon {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.sites-grid.list-view .site-card-info { min-width: 0; flex: 1; }
+.sites-grid.list-view .site-card-name {
+  font-size: 13.5px;
+  margin-bottom: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sites-grid.list-view .site-card-domain { font-size: 11.5px; }
+.sites-grid.list-view .site-card-footer {
+  border-top: none;
+  border-left: 1px solid var(--border);
+  padding: 0 16px;
+  width: 260px;
+  flex-shrink: 0;
+  background: transparent;
+}
+.sites-grid.list-view .site-card-enter { opacity: 1; }
+.sites-grid.list-view .site-delete-form {
+  position: static;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  border-left: 1px solid var(--border);
+}
+.sites-grid.list-view .site-delete-btn { opacity: 1; }
+
 /* Empty state */
 .empty-state {
   text-align: center;

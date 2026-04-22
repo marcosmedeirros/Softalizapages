@@ -2,6 +2,22 @@
 require_once __DIR__ . '/auth.php';
 requireLogin();
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete_site') {
+    $id = trim($_POST['id'] ?? '');
+    if ($id) {
+        try {
+            $site = fetchSite($id);
+            if ($site && $site['status'] !== 'ativo') {
+                deleteSite($id);
+            }
+        } catch (Throwable $e) {
+            error_log('delete_site: ' . $e->getMessage());
+        }
+    }
+    header('Location: dashboard.php');
+    exit;
+}
+
 $stats = fetchStats();
 $sites = fetchSites();
 $forms = fetchForms();
@@ -119,14 +135,23 @@ $pendingCount = count($pendingForms);
     <!-- Sites grid -->
     <div class="section-header">
       <span class="section-title">Sites (<?php echo count($sites); ?>)</span>
-      <input
-        type="search"
-        id="siteSearch"
-        placeholder="Filtrar sites..."
-        class="input"
-        style="width:220px;"
-        autocomplete="off"
-      />
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="view-toggle">
+          <button class="view-btn" id="viewCard" title="Cards">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+              <rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/>
+              <rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/>
+            </svg>
+          </button>
+          <button class="view-btn" id="viewList" title="Lista">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+              <rect x="1" y="2" width="14" height="2" rx="1"/><rect x="1" y="7" width="14" height="2" rx="1"/>
+              <rect x="1" y="12" width="14" height="2" rx="1"/>
+            </svg>
+          </button>
+        </div>
+        <input type="search" id="siteSearch" placeholder="Filtrar sites..." class="input" style="width:220px;" autocomplete="off" />
+      </div>
     </div>
 
     <?php if (empty($sites)): ?>
@@ -145,40 +170,53 @@ $pendingCount = count($pendingForms);
           $isAtivo = $s['status'] === 'ativo';
           $pages   = (int)($s['page_count'] ?? 0);
         ?>
-        <a class="site-card" href="site.php?id=<?php echo urlencode($s['id']); ?>" data-name="<?php echo htmlspecialchars(strtolower($s['name'] . ' ' . ($s['owner'] ?? ''))); ?>">
-          <div class="site-card-top">
-            <div class="site-card-icon"><?php echo $initial; ?></div>
-            <div class="site-card-name"><?php echo htmlspecialchars($s['name']); ?></div>
-            <div class="site-card-domain">
-              <?php if ($domain): ?>
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M8 1c-2 2-3 4-3 7s1 5 3 7M8 1c2 2 3 4 3 7s-1 5-3 7M1 8h14" stroke="currentColor" stroke-width="1.5"/></svg>
-                <?php echo htmlspecialchars($domain); ?>
-              <?php else: ?>
-                Sem domínio configurado
-              <?php endif; ?>
+        <div class="site-card-wrapper" data-name="<?php echo htmlspecialchars(strtolower($s['name'] . ' ' . ($s['owner'] ?? ''))); ?>">
+          <a class="site-card" href="site.php?id=<?php echo urlencode($s['id']); ?>">
+            <div class="site-card-top">
+              <div class="site-card-icon"><?php echo $initial; ?></div>
+              <div class="site-card-info">
+                <div class="site-card-name"><?php echo htmlspecialchars($s['name']); ?></div>
+                <div class="site-card-domain">
+                  <?php if ($domain): ?>
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M8 1c-2 2-3 4-3 7s1 5 3 7M8 1c2 2 3 4 3 7s-1 5-3 7M1 8h14" stroke="currentColor" stroke-width="1.5"/></svg>
+                    <?php echo htmlspecialchars($domain); ?>
+                  <?php else: ?>
+                    Sem domínio configurado
+                  <?php endif; ?>
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="site-card-footer">
-            <div class="site-card-meta">
-              <span class="site-card-meta-item">
-                <?php if ($isAtivo): ?>
-                  <span class="badge badge-success">Ativo</span>
-                <?php else: ?>
-                  <span class="badge badge-muted">Rascunho</span>
-                <?php endif; ?>
-              </span>
-              <span class="site-card-meta-item text-muted text-xs">
-                📄 <?php echo $pages; ?> pág.
-              </span>
-              <span class="site-card-meta-item text-muted text-xs">
-                <?php echo htmlspecialchars($s['owner'] ?? ''); ?>
-              </span>
+            <div class="site-card-footer">
+              <div class="site-card-meta">
+                <span class="site-card-meta-item">
+                  <?php if ($isAtivo): ?>
+                    <span class="badge badge-success">Ativo</span>
+                  <?php else: ?>
+                    <span class="badge badge-muted">Rascunho</span>
+                  <?php endif; ?>
+                </span>
+                <span class="site-card-meta-item text-muted text-xs">
+                  📄 <?php echo $pages; ?> pág.
+                </span>
+                <span class="site-card-meta-item text-muted text-xs">
+                  <?php echo htmlspecialchars($s['owner'] ?? ''); ?>
+                </span>
+              </div>
+              <span class="site-card-enter">Abrir →</span>
             </div>
-            <span class="site-card-enter">
-              Abrir →
-            </span>
-          </div>
-        </a>
+          </a>
+          <?php if (!$isAtivo): ?>
+          <form method="post" class="site-delete-form">
+            <input type="hidden" name="action" value="delete_site">
+            <input type="hidden" name="id" value="<?php echo htmlspecialchars($s['id']); ?>">
+            <button type="submit" class="site-delete-btn" title="Apagar rascunho">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 4h12M5 4V2h6v2M3 4l1 10h8l1-10M6.5 7v4M9.5 7v4"/>
+              </svg>
+            </button>
+          </form>
+          <?php endif; ?>
+        </div>
         <?php endforeach; ?>
       </div>
     <?php endif; ?>
@@ -187,16 +225,42 @@ $pendingCount = count($pendingForms);
 </div>
 
 <script>
+// Filtro de busca
 const searchInput = document.getElementById('siteSearch');
 if (searchInput) {
   searchInput.addEventListener('input', function() {
     const q = this.value.toLowerCase().trim();
-    document.querySelectorAll('.site-card').forEach(card => {
-      const name = card.dataset.name || '';
-      card.style.display = (!q || name.includes(q)) ? '' : 'none';
+    document.querySelectorAll('.site-card-wrapper').forEach(w => {
+      w.style.display = (!q || (w.dataset.name || '').includes(q)) ? '' : 'none';
     });
   });
 }
+
+// Toggle cards / lista
+const VIEW_KEY = 'softaliza_sites_view';
+const grid     = document.getElementById('sitesGrid');
+const btnCard  = document.getElementById('viewCard');
+const btnList  = document.getElementById('viewList');
+
+function setView(v) {
+  localStorage.setItem(VIEW_KEY, v);
+  grid?.classList.toggle('list-view', v === 'list');
+  btnCard?.classList.toggle('active', v === 'card');
+  btnList?.classList.toggle('active', v === 'list');
+}
+
+setView(localStorage.getItem(VIEW_KEY) || 'card');
+btnCard?.addEventListener('click', () => setView('card'));
+btnList?.addEventListener('click', () => setView('list'));
+
+// Confirmação de exclusão
+document.querySelectorAll('.site-delete-form').forEach(form => {
+  form.addEventListener('submit', e => {
+    if (!confirm('Apagar este rascunho permanentemente?\nEsta ação não pode ser desfeita.')) {
+      e.preventDefault();
+    }
+  });
+});
 </script>
 </body>
 </html>
