@@ -19,15 +19,92 @@ function db(): PDO
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
 
-    ensureUserTable($pdo);
+    ensureAllTables($pdo);
 
     return $pdo;
 }
 
-function ensureUserTable(PDO $pdo): void
+function ensureAllTables(PDO $pdo): void
 {
-    try {
-        $pdo->exec("create table if not exists users (
+    $statements = [
+        "create table if not exists associations (
+            id char(36) not null,
+            name text not null,
+            contact_email text,
+            created_at timestamp not null default current_timestamp,
+            primary key (id)
+        ) engine=InnoDB charset=utf8mb4",
+
+        "create table if not exists templates (
+            id char(36) not null,
+            name text not null,
+            description text,
+            default_pages json not null,
+            created_at timestamp not null default current_timestamp,
+            primary key (id)
+        ) engine=InnoDB charset=utf8mb4",
+
+        "create table if not exists sites (
+            id char(36) not null,
+            association_id char(36) not null,
+            template_id char(36),
+            name text not null,
+            status text not null default 'rascunho',
+            plan text not null default 'basico',
+            domain text,
+            notes text,
+            logo_url text,
+            primary_color varchar(20),
+            secondary_color varchar(20),
+            accent_color varchar(20),
+            is_inspiration tinyint(1) not null default 0,
+            created_at timestamp not null default current_timestamp,
+            primary key (id)
+        ) engine=InnoDB charset=utf8mb4",
+
+        "create table if not exists site_pages (
+            id char(36) not null,
+            site_id char(36) not null,
+            title text not null,
+            file text not null,
+            status text not null default 'rascunho',
+            sort_order int not null default 0,
+            created_at timestamp not null default current_timestamp,
+            primary key (id),
+            key site_pages_site_id_idx (site_id)
+        ) engine=InnoDB charset=utf8mb4",
+
+        "create table if not exists form_requests (
+            id char(36) not null,
+            association_name text not null,
+            contact_email text,
+            contact_phone text,
+            contact_address text,
+            site_name text not null,
+            domain text,
+            template_id char(36),
+            notes text,
+            logo_url text,
+            event_date date null,
+            event_location text,
+            primary_color varchar(20),
+            secondary_color varchar(20),
+            accent_color varchar(20),
+            speakers json,
+            scientific_committee json,
+            organizing_committee json,
+            social_links json,
+            pages_requested json,
+            pages_content json,
+            inspiration_site_id char(36),
+            inspiration_link text,
+            status text not null default 'novo',
+            created_at timestamp not null default current_timestamp,
+            converted_at timestamp null,
+            primary key (id)
+        ) engine=InnoDB charset=utf8mb4",
+
+        "create table if not exists users (
             id char(36) not null,
             name varchar(255) not null,
             email varchar(255) not null,
@@ -39,9 +116,15 @@ function ensureUserTable(PDO $pdo): void
             created_at timestamp not null default current_timestamp,
             primary key (id),
             unique key users_email_unique (email)
-        ) engine=InnoDB charset=utf8mb4");
-    } catch (Throwable $e) {
-        error_log("ensureUserTable failed: " . $e->getMessage());
+        ) engine=InnoDB charset=utf8mb4",
+    ];
+
+    foreach ($statements as $sql) {
+        try {
+            $pdo->exec($sql);
+        } catch (Throwable $e) {
+            error_log("ensureAllTables failed: " . $e->getMessage());
+        }
     }
 }
 
