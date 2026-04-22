@@ -1,11 +1,8 @@
 <?php
-// ============================================================
-// auth.php — Softaliza: helpers de sessão e autenticação
-// ============================================================
+ob_start();
 
 require_once __DIR__ . "/data/db.php";
 
-// Inicia sessão se ainda não iniciada
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }

@@ -1,0 +1,11 @@
+Options -Indexes
+
+# Suppress PHP errors from polluting HTML output
+php_flag display_errors off
+php_value error_reporting 0
+
+# Correct charset and MIME types
+AddDefaultCharset UTF-8
+AddType text/css         .css
+AddType text/javascript  .js
+AddType image/svg+xml    .svg
