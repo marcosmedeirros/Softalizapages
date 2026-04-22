@@ -137,13 +137,13 @@ $pendingCount = count($pendingForms);
       <span class="section-title">Sites (<?php echo count($sites); ?>)</span>
       <div style="display:flex;align-items:center;gap:10px;">
         <div class="view-toggle">
-          <button class="view-btn" id="viewCard" title="Cards">
+          <button type="button" class="view-btn" id="viewCard" title="Cards">
             <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
               <rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/>
               <rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/>
             </svg>
           </button>
-          <button class="view-btn" id="viewList" title="Lista">
+          <button type="button" class="view-btn" id="viewList" title="Lista">
             <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
               <rect x="1" y="2" width="14" height="2" rx="1"/><rect x="1" y="7" width="14" height="2" rx="1"/>
               <rect x="1" y="12" width="14" height="2" rx="1"/>
@@ -215,6 +215,12 @@ $pendingCount = count($pendingForms);
               </svg>
             </button>
           </form>
+          <?php else: ?>
+          <span class="site-delete-btn site-delete-disabled" title="Despublique o site para poder apagar">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 4h12M5 4V2h6v2M3 4l1 10h8l1-10M6.5 7v4M9.5 7v4"/>
+            </svg>
+          </span>
           <?php endif; ?>
         </div>
         <?php endforeach; ?>
@@ -226,36 +232,39 @@ $pendingCount = count($pendingForms);
 
 <script>
 // Filtro de busca
-const searchInput = document.getElementById('siteSearch');
+var searchInput = document.getElementById('siteSearch');
 if (searchInput) {
   searchInput.addEventListener('input', function() {
-    const q = this.value.toLowerCase().trim();
-    document.querySelectorAll('.site-card-wrapper').forEach(w => {
+    var q = this.value.toLowerCase().trim();
+    document.querySelectorAll('.site-card-wrapper').forEach(function(w) {
       w.style.display = (!q || (w.dataset.name || '').includes(q)) ? '' : 'none';
     });
   });
 }
 
 // Toggle cards / lista
-const VIEW_KEY = 'softaliza_sites_view';
-const grid     = document.getElementById('sitesGrid');
-const btnCard  = document.getElementById('viewCard');
-const btnList  = document.getElementById('viewList');
+var VIEW_KEY = 'softaliza_sites_view';
+var grid    = document.getElementById('sitesGrid');
+var btnCard = document.getElementById('viewCard');
+var btnList = document.getElementById('viewList');
 
 function setView(v) {
-  localStorage.setItem(VIEW_KEY, v);
-  grid?.classList.toggle('list-view', v === 'list');
-  btnCard?.classList.toggle('active', v === 'card');
-  btnList?.classList.toggle('active', v === 'list');
+  try { localStorage.setItem(VIEW_KEY, v); } catch(e) {}
+  if (grid)    grid.classList[v === 'list' ? 'add' : 'remove']('list-view');
+  if (btnCard) btnCard.classList[v === 'card' ? 'add' : 'remove']('active');
+  if (btnList) btnList.classList[v === 'list' ? 'add' : 'remove']('active');
 }
 
-setView(localStorage.getItem(VIEW_KEY) || 'card');
-btnCard?.addEventListener('click', () => setView('card'));
-btnList?.addEventListener('click', () => setView('list'));
+var savedView = 'card';
+try { savedView = localStorage.getItem(VIEW_KEY) || 'card'; } catch(e) {}
+setView(savedView);
+
+if (btnCard) btnCard.addEventListener('click', function() { setView('card'); });
+if (btnList) btnList.addEventListener('click', function() { setView('list'); });
 
 // Confirmação de exclusão
-document.querySelectorAll('.site-delete-form').forEach(form => {
-  form.addEventListener('submit', e => {
+document.querySelectorAll('.site-delete-form').forEach(function(form) {
+  form.addEventListener('submit', function(e) {
     if (!confirm('Apagar este rascunho permanentemente?\nEsta ação não pode ser desfeita.')) {
       e.preventDefault();
     }

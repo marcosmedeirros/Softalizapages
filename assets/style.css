@@ -542,19 +542,52 @@ select.input { cursor: pointer; }
   color: var(--danger);
   border-color: #fca5a5;
 }
+.site-delete-disabled {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--border-2);
+  display: flex; align-items: center; justify-content: center;
+  cursor: not-allowed;
+  opacity: 0;
+}
+.site-card-wrapper:hover .site-delete-disabled { opacity: 1; }
 
 /* ── List view ───────────────────────────────────────────── */
 .sites-grid.list-view {
   grid-template-columns: 1fr;
   gap: 4px;
 }
+/* O wrapper vira a "linha" no modo lista */
+.sites-grid.list-view .site-card-wrapper {
+  display: flex;
+  align-items: stretch;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  transition: box-shadow .2s, border-color .2s;
+}
+.sites-grid.list-view .site-card-wrapper:hover {
+  box-shadow: var(--shadow);
+  border-color: var(--border-2);
+}
+/* Card perde borda própria e vira flex row */
 .sites-grid.list-view .site-card {
+  flex: 1;
   display: flex;
   flex-direction: row;
   align-items: stretch;
-  border-radius: var(--radius-sm);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
-.sites-grid.list-view .site-card:hover { transform: none; }
+.sites-grid.list-view .site-card:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: transparent;
+}
 .sites-grid.list-view .site-card-top {
   flex: 1;
   display: flex;
@@ -582,16 +615,17 @@ select.input { cursor: pointer; }
   border-top: none;
   border-left: 1px solid var(--border);
   padding: 0 16px;
-  width: 260px;
+  width: 240px;
   flex-shrink: 0;
   background: transparent;
 }
 .sites-grid.list-view .site-card-enter { opacity: 1; }
+/* Delete btn inline no modo lista */
 .sites-grid.list-view .site-delete-form {
   position: static;
   display: flex;
   align-items: center;
-  padding: 0 10px;
+  padding: 0 12px;
   border-left: 1px solid var(--border);
 }
 .sites-grid.list-view .site-delete-btn { opacity: 1; }
