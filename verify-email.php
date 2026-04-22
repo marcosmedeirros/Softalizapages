@@ -20,7 +20,7 @@ if ($ok) {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Verificação de e-mail — Softaliza</title>
-  <link rel="stylesheet" href="assets/style.css" />
+  <link rel="stylesheet" href="/assets/style.css" />
 </head>
 <body class="auth-body">
   <div class="auth-card" style="text-align:center;">

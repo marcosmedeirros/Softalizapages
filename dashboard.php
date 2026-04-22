@@ -19,8 +19,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
 }
 
 $stats = fetchStats();
-$sites = fetchSites();
-$forms = fetchForms();
+try { $sites = fetchSites(); } catch (Throwable $e) { error_log('fetchSites: ' . $e->getMessage()); $sites = []; }
+try { $forms = fetchForms(); } catch (Throwable $e) { error_log('fetchForms: ' . $e->getMessage()); $forms = []; }
 $user  = currentUser();
 
 $pendingForms = array_filter($forms, fn($f) => $f['status'] === 'novo');
@@ -32,7 +32,7 @@ $pendingCount = count($pendingForms);
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Hub — Softaliza</title>
-  <link rel="stylesheet" href="assets/style.css" />
+  <link rel="stylesheet" href="/assets/style.css" />
 </head>
 <body>
 <div class="app">

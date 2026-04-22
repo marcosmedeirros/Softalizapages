@@ -117,13 +117,19 @@ function ensureAllTables(PDO $pdo): void
             primary key (id),
             unique key users_email_unique (email)
         ) engine=InnoDB charset=utf8mb4",
+
+        // ALTER para colunas que podem não existir em tabelas antigas
+        "alter table sites add column is_inspiration tinyint(1) not null default 0",
+        "alter table form_requests add column inspiration_link text null",
+        "alter table form_requests add column converted_at timestamp null",
     ];
 
     foreach ($statements as $sql) {
         try {
             $pdo->exec($sql);
         } catch (Throwable $e) {
-            error_log("ensureAllTables failed: " . $e->getMessage());
+            // Ignora "Duplicate column name" e outros erros esperados em ALTER
+            error_log("ensureAllTables: " . $e->getMessage());
         }
     }
 }
