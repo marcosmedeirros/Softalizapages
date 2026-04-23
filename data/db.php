@@ -58,6 +58,8 @@ function ensureAllTables(PDO $pdo): void
             secondary_color varchar(20),
             accent_color varchar(20),
             is_inspiration tinyint(1) not null default 0,
+            vercel_project_id varchar(255) null,
+            vercel_deploy_url text null,
             created_at timestamp not null default current_timestamp,
             primary key (id)
         ) engine=InnoDB charset=utf8mb4",
@@ -118,8 +120,10 @@ function ensureAllTables(PDO $pdo): void
             unique key users_email_unique (email)
         ) engine=InnoDB charset=utf8mb4",
 
-        // ALTER para colunas que podem não existir em tabelas antigas
+        // ALTER para colunas que podem nao existir em tabelas antigas
         "alter table sites add column is_inspiration tinyint(1) not null default 0",
+        "alter table sites add column vercel_project_id varchar(255) null",
+        "alter table sites add column vercel_deploy_url text null",
         "alter table form_requests add column inspiration_link text null",
         "alter table form_requests add column converted_at timestamp null",
     ];
@@ -435,7 +439,14 @@ function fetchTemplates(): array
 function fetchSite(string $id): ?array
 {
     $stmt = db()->prepare(
-        "select\n            s.id,\n            s.name,\n            s.status,\n            s.plan,\n            s.domain,\n            s.notes,\n            s.created_at,\n            a.name as owner,\n            a.contact_email,\n            t.name as template\n        from sites s\n        join associations a on a.id = s.association_id\n        left join templates t on t.id = s.template_id\n        where s.id = :id"
+        "select s.id, s.name, s.status, s.plan, s.domain, s.notes,
+                s.vercel_project_id, s.vercel_deploy_url, s.created_at,
+                a.name as owner, a.contact_email,
+                t.name as template
+         from sites s
+         join associations a on a.id = s.association_id
+         left join templates t on t.id = s.template_id
+         where s.id = :id"
     );
     $stmt->execute(["id" => $id]);
     $row = $stmt->fetch();
@@ -529,14 +540,32 @@ function createFormRequest(array $data): string
 
 function updateSiteStatus(string $siteId, string $status): void
 {
-    $stmt = db()->prepare("update sites set status = :status where id = :id");
-    $stmt->execute(["status" => $status, "id" => $siteId]);
+    db()->prepare("update sites set status = :status where id = :id")
+        ->execute(["status" => $status, "id" => $siteId]);
 }
 
 function updateSiteName(string $siteId, string $name): void
 {
-    $stmt = db()->prepare("update sites set name = :name where id = :id");
-    $stmt->execute(["name" => $name, "id" => $siteId]);
+    db()->prepare("update sites set name = :name where id = :id")
+        ->execute(["name" => $name, "id" => $siteId]);
+}
+
+function updateSiteDomain(string $siteId, string $domain): void
+{
+    db()->prepare("update sites set domain = :domain where id = :id")
+        ->execute(["domain" => $domain ?: null, "id" => $siteId]);
+}
+
+function updateSiteVercelProject(string $siteId, string $vercelProjectId): void
+{
+    db()->prepare("update sites set vercel_project_id = :pid where id = :id")
+        ->execute(["pid" => $vercelProjectId, "id" => $siteId]);
+}
+
+function updateSiteVercelDeploy(string $siteId, string $vercelProjectId, string $deployUrl): void
+{
+    db()->prepare("update sites set vercel_project_id = :pid, vercel_deploy_url = :url where id = :id")
+        ->execute(["pid" => $vercelProjectId, "url" => $deployUrl, "id" => $siteId]);
 }
 
 function updatePageStatus(string $pageId, string $status): void

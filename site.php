@@ -57,24 +57,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Domain
     if ($action === 'save_domain') {
-        $domain = trim($_POST['domain'] ?? '');
+        $domain    = trim($_POST['domain'] ?? '');
         $oldDomain = $site['domain'] ?? '';
+        $vpid      = $site['vercel_project_id'] ?? null;
 
         $vercel = new VercelDomains();
 
-        // Remove domínio antigo da Vercel se mudou
         if ($oldDomain && $oldDomain !== $domain && $vercel->isConfigured()) {
-            $vercel->removeDomain($oldDomain);
+            $vercel->removeDomain($oldDomain, $vpid);
         }
 
-        // Salva no banco
         updateSiteDomain($site['id'], $domain);
 
-        // Adiciona novo domínio na Vercel
-        if ($domain && $vercel->isConfigured()) {
-            $res = $vercel->addDomain($domain);
+        if ($domain && $vercel->isConfigured() && $vpid) {
+            $res = $vercel->addDomain($domain, $vpid);
             if (!$res['ok']) {
-                $error = 'Domínio salvo no banco, mas a Vercel retornou erro: ' . $res['error'];
+                $error = 'Domínio salvo, mas a Vercel retornou erro: ' . $res['error'];
             }
         }
 
@@ -87,13 +85,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'verify_domain') {
         $vercel = new VercelDomains();
         $domain = $site['domain'] ?? '';
+        $vpid   = $site['vercel_project_id'] ?? null;
         if ($domain && $vercel->isConfigured()) {
-            $res = $vercel->verifyDomain($domain);
+            $res = $vercel->verifyDomain($domain, $vpid);
             $success = $res['verified'] ? 'Domínio verificado com sucesso!' : 'Verificação ainda pendente. Configure o DNS e tente novamente.';
         } else {
             $success = 'Vercel não configurado. Verifique o config.php.';
         }
         $tab = 'domain';
+    }
+
+    if ($action === 'publish_vercel') {
+        $vercel = new VercelDomains();
+        $tab    = 'domain';
+        if (!$vercel->isConfigured()) {
+            $error = 'Token Vercel não configurado. Defina VERCEL_TOKEN no ambiente.';
+        } else {
+            $vpid = $site['vercel_project_id'] ?? '';
+
+            // Create project if needed
+            if (!$vpid) {
+                $res = $vercel->createProject($site['name'], $site['id']);
+                if (!$res['ok']) {
+                    $error = 'Erro ao criar projeto Vercel: ' . ($res['error'] ?? 'desconhecido');
+                } else {
+                    $vpid = $res['project_id'];
+                }
+            }
+
+            if (!$error) {
+                // Collect all files from the site folder
+                $siteDir = sitesRoot() . '/' . $site['id'];
+                $files   = [];
+                if (is_dir($siteDir)) {
+                    $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(
+                        $siteDir,
+                        RecursiveDirectoryIterator::SKIP_DOTS
+                    ));
+                    foreach ($it as $fileObj) {
+                        if ($fileObj->isFile()) {
+                            $rel = ltrim(str_replace('\\', '/', substr($fileObj->getPathname(), strlen($siteDir))), '/');
+                            $files[$rel] = file_get_contents($fileObj->getPathname());
+                        }
+                    }
+                }
+
+                if (empty($files)) {
+                    $error = 'Nenhum arquivo encontrado. Crie pelo menos uma página antes de publicar.';
+                } else {
+                    $res = $vercel->deploy($vpid, $files);
+                    if (!$res['ok']) {
+                        $error = 'Erro no deploy: ' . ($res['error'] ?? 'desconhecido');
+                    } else {
+                        $deployUrl = $res['url'] ?? '';
+                        updateSiteVercelDeploy($site['id'], $vpid, $deployUrl);
+
+                        // Attach custom domain to the project if one is set
+                        if ($site['domain']) {
+                            $vercel->addDomain($site['domain'], $vpid);
+                        }
+
+                        header("Location: site.php?id={$id}&tab=domain&ok=deployed"); exit;
+                    }
+                }
+            }
+        }
     }
 
     if ($action === 'delete_site') {
@@ -105,12 +161,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Flash messages
 if (($_GET['ok'] ?? '') === 'saved')        $success = 'Alterações salvas com sucesso!';
 if (($_GET['ok'] ?? '') === 'page_created') $success = 'Página criada com sucesso!';
+if (($_GET['ok'] ?? '') === 'deployed')     $success = 'Site publicado com sucesso no Vercel!';
 
 $pages  = fetchSitePages($site['id']);
 $vercel = new VercelDomains();
 $domainStatus = null;
+$vpid = $site['vercel_project_id'] ?? null;
 if ($site['domain'] && $vercel->isConfigured()) {
-    $domainStatus = $vercel->getDomainStatus($site['domain']);
+    $domainStatus = $vercel->getDomainStatus($site['domain'], $vpid);
 }
 $siteInitial = mb_strtoupper(mb_substr($site['name'], 0, 1));
 ?>
@@ -370,12 +428,46 @@ $siteInitial = mb_strtoupper(mb_substr($site['name'], 0, 1));
     ══════════════════════════════════════════════════════════ -->
     <?php elseif ($tab === 'domain'): ?>
 
-      <h2 style="font-size:17px;font-weight:700;margin-bottom:6px;">Domínio personalizado</h2>
-      <p class="text-muted text-sm mb-6">Cada site pode ter seu próprio domínio via Vercel Platforms.</p>
+      <h2 style="font-size:17px;font-weight:700;margin-bottom:6px;">Publicar no Vercel</h2>
+      <p class="text-muted text-sm mb-6">Faça deploy dos arquivos do site na Vercel e conecte seu domínio personalizado.</p>
+
+      <!-- Vercel deploy card -->
+      <div class="settings-section mb-6">
+        <div class="settings-section-header">
+          <h3>Deploy</h3>
+          <p>Publica todos os arquivos do site num projeto Vercel dedicado.</p>
+        </div>
+        <div class="settings-section-body">
+          <?php if ($site['vercel_deploy_url']): ?>
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+              <span style="font-size:13px;color:var(--muted);">URL atual:</span>
+              <a href="<?php echo htmlspecialchars($site['vercel_deploy_url']); ?>" target="_blank" rel="noopener"
+                 style="font-family:monospace;font-size:13px;">
+                <?php echo htmlspecialchars($site['vercel_deploy_url']); ?> ↗
+              </a>
+            </div>
+            <p class="text-muted text-sm">Cada novo deploy cria uma nova URL imutável. O domínio personalizado continua apontando para o projeto.</p>
+          <?php else: ?>
+            <p class="text-muted text-sm">Nenhum deploy realizado ainda. Clique em "Publicar" para enviar os arquivos do site para a Vercel.</p>
+          <?php endif; ?>
+        </div>
+        <div class="settings-footer">
+          <?php if ($vercel->isConfigured()): ?>
+            <form method="post">
+              <input type="hidden" name="action" value="publish_vercel">
+              <button type="submit" class="btn btn-primary btn-sm">
+                <?php echo $site['vercel_deploy_url'] ? 'Re-publicar (novo deploy)' : 'Publicar no Vercel'; ?>
+              </button>
+            </form>
+          <?php else: ?>
+            <span class="text-muted text-sm">Configure VERCEL_TOKEN para habilitar o deploy.</span>
+          <?php endif; ?>
+        </div>
+      </div>
 
       <!-- Current domain status -->
       <?php if ($site['domain']): ?>
-      <div class="domain-status-card mb-6">
+      <div class="domain-status-card mb-6" style="margin-top:8px;">
         <div class="domain-status-row">
           <div>
             <div class="domain-name">
@@ -435,7 +527,7 @@ $siteInitial = mb_strtoupper(mb_substr($site['name'], 0, 1));
       <div class="settings-section">
         <div class="settings-section-header">
           <h3><?php echo $site['domain'] ? 'Alterar domínio' : 'Adicionar domínio'; ?></h3>
-          <p>O domínio será registrado no projeto Vercel automaticamente via API.</p>
+          <p>O domínio será vinculado ao projeto Vercel deste site via API. Publique primeiro se ainda não o fez.</p>
         </div>
         <form method="post">
           <input type="hidden" name="action" value="save_domain">
@@ -460,10 +552,9 @@ $siteInitial = mb_strtoupper(mb_substr($site['name'], 0, 1));
       <div class="alert alert-info mt-4">
         <span>ℹ️</span>
         <span>
-          A integração com a Vercel não está configurada. Defina as variáveis
-          <code style="background:#c7d2fe20;padding:1px 5px;border-radius:4px;">VERCEL_TOKEN</code> e
-          <code style="background:#c7d2fe20;padding:1px 5px;border-radius:4px;">VERCEL_PROJECT_ID</code>
-          no seu ambiente ou em <code>config.php</code>.
+          Integração com a Vercel não configurada. Defina a variável
+          <code style="background:#c7d2fe20;padding:1px 5px;border-radius:4px;">VERCEL_TOKEN</code>
+          no painel do Hostinger (Configurações → Variáveis de Ambiente) ou em <code>config.php</code>.
           <a href="https://vercel.com/account/tokens" target="_blank" rel="noopener">Gerar token →</a>
         </span>
       </div>
@@ -473,9 +564,10 @@ $siteInitial = mb_strtoupper(mb_substr($site['name'], 0, 1));
         <div class="card-header"><h3>Como funciona</h3></div>
         <div class="card-body" style="font-size:13.5px;color:var(--muted);line-height:1.7;">
           <ol style="margin:0;padding-left:18px;display:grid;gap:8px;">
-            <li>Informe o domínio desejado (sem www ou http://)</li>
-            <li>A Softaliza registra o domínio via <strong>Vercel Domains API</strong></li>
-            <li>Configure um registro <strong>CNAME</strong> no seu registrador de domínio</li>
+            <li>Clique em <strong>Publicar no Vercel</strong> — um projeto dedicado é criado e os arquivos são enviados</li>
+            <li>Informe o domínio personalizado no campo abaixo (sem www ou http://)</li>
+            <li>A Softaliza vincula o domínio ao projeto via <strong>Vercel Domains API</strong></li>
+            <li>Configure um registro <strong>CNAME</strong> no seu registrador de domínio apontando para <code>cname.vercel-dns.com</code></li>
             <li>Clique em "Verificar DNS" após a propagação (pode levar até 48h)</li>
             <li>O SSL é provisionado automaticamente pela Vercel</li>
           </ol>
