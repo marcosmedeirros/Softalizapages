@@ -439,10 +439,7 @@ function fetchTemplates(): array
 function fetchSite(string $id): ?array
 {
     $stmt = db()->prepare(
-        "select s.id, s.name, s.status, s.plan, s.domain, s.notes,
-                s.vercel_project_id, s.vercel_deploy_url, s.created_at,
-                a.name as owner, a.contact_email,
-                t.name as template
+        "select s.*, a.name as owner, a.contact_email, t.name as template
          from sites s
          join associations a on a.id = s.association_id
          left join templates t on t.id = s.template_id
