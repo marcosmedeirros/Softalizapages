@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $forms = fetchForms();
 $user  = currentUser();
 
-$pendingForms   = array_filter($forms, fn($f) => $f['status'] === 'novo');
+$pendingForms   = array_filter($forms, fn($f) => $f['status'] !== 'convertido');
 $convertedForms = array_filter($forms, fn($f) => $f['status'] === 'convertido');
 ?>
 <!DOCTYPE html>
